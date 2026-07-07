@@ -258,7 +258,9 @@ class OmniLogicProtocol(asyncio.DatagramProtocol):
             received_block_count += 1
             _LOGGER.debug("received block %d/%d", received_block_count, lead.msg_block_count)
 
-        return payload_data, compressed
+        # MsgSize identifies the response boundary. Do not strip null bytes from
+        # the payload: they may be valid bytes in a compressed stream's trailer.
+        return payload_data[: lead.msg_size], compressed
 
     def _parse_lead_message(self, msg: OmniLogicMessage) -> LeadMessage:
         """Parse the XML payload of an MSP_LEADMESSAGE into a LeadMessage model.
@@ -284,7 +286,10 @@ class OmniLogicProtocol(asyncio.DatagramProtocol):
             Decoded UTF-8 string with leading/trailing null bytes stripped.
         """
         if compressed:
-            data = zlib.decompress(data.rstrip(b"\x00"))
+            # zlib ignores bytes after the end of a complete stream, so keeping
+            # the wire payload intact preserves a valid trailer that may end in
+            # a null byte while still tolerating protocol padding.
+            data = zlib.decompress(data)
         return data.decode("utf-8").strip("\x00")
 
     # -------------------------------------------------------------------------

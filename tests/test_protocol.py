@@ -595,6 +595,46 @@ async def test_receive_file_decompresses_data() -> None:
 
 
 @pytest.mark.asyncio
+async def test_receive_file_decompresses_data_with_protocol_padding() -> None:
+    """Test that valid compressed trailers are not removed with protocol padding."""
+    protocol = OmniLogicProtocol()
+
+    original = b""
+    compressed_data = b""
+    for value in range(256):
+        candidate = b"<STATUS/>" + b"a" * value
+        compressed_candidate = zlib.compress(candidate)
+        if compressed_candidate.endswith(b"\x00"):
+            original = candidate
+            compressed_data = compressed_candidate
+            break
+    else:
+        pytest.fail("Could not create a zlib stream ending in a null byte")
+
+    leadmsg_payload = (
+        '<?xml version="1.0" encoding="UTF-8" ?><Response xmlns="http://nextgen.hayward.com/api"><Name>LeadMessage</Name><Parameters>'
+        '<Parameter name="SourceOpId" dataType="int">1003</Parameter>'
+        f'<Parameter name="MsgSize" dataType="int">{len(compressed_data)}</Parameter>'
+        '<Parameter name="MsgBlockCount" dataType="int">1</Parameter><Parameter name="Type" dataType="int">0</Parameter></Parameters>'
+        "</Response>"
+    )
+    leadmsg = OmniLogicMessage(100, MessageType.MSP_LEADMESSAGE, payload=leadmsg_payload)
+    leadmsg.compressed = True
+
+    block = OmniLogicMessage(101, MessageType.MSP_BLOCKMESSAGE)
+    block.payload = b"\x00" * 8 + compressed_data + b"\x00" * 3
+
+    await protocol._receive_queue.put(leadmsg)
+    await protocol._receive_queue.put(block)
+
+    raw_data, compressed = await protocol._receive_response()
+
+    assert raw_data == compressed_data
+    assert compressed is True
+    assert protocol._decode_payload(raw_data, compressed) == original.decode()
+
+
+@pytest.mark.asyncio
 async def test_receive_file_decompression_error() -> None:
     """Test that _decode_payload raises OmniMessageFormatError for invalid compressed data."""
     protocol = OmniLogicProtocol()

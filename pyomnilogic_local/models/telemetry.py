@@ -448,11 +448,11 @@ class TelemetryVirtualHeater(BaseModel):
     system_id: int = Field(alias="@systemId")
     current_set_point: int = Field(alias="@Current-Set-Point")
     enabled: bool = Field(alias="@enable")
-    solar_set_point: int = Field(alias="@SolarSetPoint")
-    mode: HeaterMode = Field(alias="@Mode")
-    silent_mode: int = Field(alias="@SilentMode")
-    why_on: HeaterWhyOn = Field(alias="@whyHeaterIsOn")
-
+    # FW114: firmware speaking protocol 1.14 omits these attributes
+    solar_set_point: int | None = Field(alias="@SolarSetPoint", default=None)
+    mode: HeaterMode = Field(alias="@Mode", default=HeaterMode.HEATING)
+    silent_mode: int = Field(alias="@SilentMode", default=0)
+    why_on: HeaterWhyOn = Field(alias="@whyHeaterIsOn", default=HeaterWhyOn.NO_MESSAGE)
 
 type TelemetryType = (
     TelemetryBackyard

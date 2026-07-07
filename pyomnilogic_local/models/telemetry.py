@@ -453,6 +453,7 @@ class TelemetryVirtualHeater(BaseModel):
     mode: HeaterMode = Field(alias="@Mode", default=HeaterMode.HEATING)
     silent_mode: int = Field(alias="@SilentMode", default=0)
     why_on: HeaterWhyOn = Field(alias="@whyHeaterIsOn", default=HeaterWhyOn.NO_MESSAGE)
+    
 
 type TelemetryType = (
     TelemetryBackyard
